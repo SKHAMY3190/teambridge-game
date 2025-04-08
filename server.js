@@ -4,11 +4,11 @@ const { Server } = require("socket.io");
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: { origin: "*" },
-});
+const io = new Server(server);
 
 let bridge = [];
+
+app.use(express.static("public")); // Serve frontend
 
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
@@ -21,11 +21,11 @@ io.on("connection", (socket) => {
   });
 
   socket.on("chat", (msg) => {
-    io.emit("chat", `Player ${socket.id.slice(0, 5)}: ${msg}`);
+    io.emit("chat", msg);
   });
 
-  socket.on("game_over", () => {
-    io.emit("game_over");
+  socket.on("game_over", (msg) => {
+    io.emit("game_over", msg);
   });
 
   socket.on("disconnect", () => {

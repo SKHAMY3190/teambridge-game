@@ -1,5 +1,5 @@
 {
-  "name": "teambridge-server",
+  "name": "teambridge-glitch",
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {

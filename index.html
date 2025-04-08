@@ -48,10 +48,17 @@
       font-size: 20px;
       margin-bottom: 10px;
     }
+    #playerNameInput {
+      margin-bottom: 10px;
+    }
   </style>
 </head>
 <body>
   <div id="gameArea">
+    <div id="playerNameInput">
+      <input id="playerName" type="text" placeholder="Enter your name" />
+      <button onclick="setName()">Join</button>
+    </div>
     <div id="timer">Time Left: 5:00</div>
     <canvas id="gameCanvas" width="800" height="400"></canvas>
     <div id="chatBox"></div>
@@ -67,9 +74,13 @@
     const ctx = canvas.getContext("2d");
     const chatBox = document.getElementById("chatBox");
     const input = document.getElementById("chatInput");
+    const playerNameInput = document.getElementById("playerNameInput");
+    const nameField = document.getElementById("playerName");
     let bridge = [];
     let carX = 100;
-    let timer = 300; // 5 minutes in seconds
+    let timer = 300;
+    let playerName = "Anonymous";
+    let score = 0;
 
     function drawBridge() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -91,12 +102,14 @@
     }
 
     canvas.addEventListener("click", (e) => {
+      if (!playerName) return;
       const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       if (y > 300 && y < 350) {
-        const plank = { x: x - 25, y: 340 };
+        const plank = { x: x - 25, y: 340, placedBy: playerName };
         socket.emit("place_plank", plank);
+        score++;
       }
     });
 
@@ -107,7 +120,7 @@
 
     function sendChat() {
       if (input.value.trim()) {
-        socket.emit("chat", input.value);
+        socket.emit("chat", `${playerName}: ${input.value}`);
         input.value = "";
       }
     }
@@ -127,13 +140,20 @@
         timer--;
       } else {
         clearInterval(timerInterval);
-        socket.emit("game_over");
+        socket.emit("game_over", `${playerName} Score: ${score}`);
       }
     }
 
-    socket.on("game_over", () => {
-      alert("Time's up! Game over.");
+    socket.on("game_over", (msg) => {
+      alert(msg || "Time's up! Game over.");
     });
+
+    function setName() {
+      if (nameField.value.trim()) {
+        playerName = nameField.value.trim();
+        playerNameInput.style.display = "none";
+      }
+    }
 
     const timerInterval = setInterval(updateTimer, 1000);
 
@@ -142,7 +162,7 @@
       drawBridge();
       if (carX > 800) {
         clearInterval(carMoveInterval);
-        alert("Success! The car crossed the bridge.");
+        alert("Success! The car crossed the bridge.\n" + playerName + " Score: " + score);
       }
     }
 
