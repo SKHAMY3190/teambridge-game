@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TeamBridge Prototype</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: sans-serif;
+      background: #f0f0f0;
+    }
+    #gameArea {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    canvas {
+      border: 2px solid #333;
+      background-color: #fff;
+    }
+    #chatBox {
+      width: 60%;
+      height: 100px;
+      overflow-y: scroll;
+      background: #eee;
+      border: 1px solid #aaa;
+      margin-top: 10px;
+      padding: 5px;
+    }
+    #inputArea {
+      display: flex;
+      width: 60%;
+      margin-top: 5px;
+    }
+    #inputArea input {
+      flex: 1;
+      padding: 5px;
+    }
+    #inputArea button {
+      padding: 5px 10px;
+    }
+    #timer {
+      font-size: 20px;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="gameArea">
+    <div id="timer">Time Left: 5:00</div>
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+    <div id="chatBox"></div>
+    <div id="inputArea">
+      <input id="chatInput" type="text" placeholder="Say something..." />
+      <button onclick="sendChat()">Send</button>
+    </div>
+  </div>
+  <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+  <script>
+    const socket = io();
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const chatBox = document.getElementById("chatBox");
+    const input = document.getElementById("chatInput");
+    let bridge = [];
+    let carX = 100;
+    let timer = 300; // 5 minutes in seconds
+
+    function drawBridge() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#88cc88";
+      ctx.fillRect(0, 350, 800, 50);
+
+      ctx.fillStyle = "#a0522d";
+      bridge.forEach((plank) => {
+        ctx.fillRect(plank.x, plank.y, 50, 10);
+      });
+
+      ctx.fillStyle = "#000";
+      ctx.fillRect(carX, 340, 30, 10);
+      ctx.fillStyle = "#333";
+      ctx.beginPath();
+      ctx.arc(carX + 5, 350, 5, 0, Math.PI * 2);
+      ctx.arc(carX + 20, 350, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    canvas.addEventListener("click", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      if (y > 300 && y < 350) {
+        const plank = { x: x - 25, y: 340 };
+        socket.emit("place_plank", plank);
+      }
+    });
+
+    socket.on("update_bridge", (newBridge) => {
+      bridge = newBridge;
+      drawBridge();
+    });
+
+    function sendChat() {
+      if (input.value.trim()) {
+        socket.emit("chat", input.value);
+        input.value = "";
+      }
+    }
+
+    socket.on("chat", (msg) => {
+      const message = document.createElement("div");
+      message.textContent = msg;
+      chatBox.appendChild(message);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    });
+
+    function updateTimer() {
+      const minutes = Math.floor(timer / 60);
+      const seconds = timer % 60;
+      document.getElementById("timer").textContent = `Time Left: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+      if (timer > 0) {
+        timer--;
+      } else {
+        clearInterval(timerInterval);
+        socket.emit("game_over");
+      }
+    }
+
+    socket.on("game_over", () => {
+      alert("Time's up! Game over.");
+    });
+
+    const timerInterval = setInterval(updateTimer, 1000);
+
+    function moveCar() {
+      carX += 0.5;
+      drawBridge();
+      if (carX > 800) {
+        clearInterval(carMoveInterval);
+        alert("Success! The car crossed the bridge.");
+      }
+    }
+
+    const carMoveInterval = setInterval(moveCar, 100);
+  </script>
+</body>
+</html>
